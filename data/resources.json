@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Nighttime behavior guide",
+    "type": "education",
+    "tags": ["sleep disturbance", "wandering"]
+  },
+  {
+    "name": "Caregiver support group",
+    "type": "support",
+    "tags": ["caregiver burden", "stress"]
+  },
+  {
+    "name": "Home safety checklist",
+    "type": "safety",
+    "tags": ["wandering", "fall risk"]
+  }
+]
