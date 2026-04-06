@@ -238,6 +238,7 @@ This project represents my **AI-assisted learning methodology**:
 
 **AI Tools Used:**
 - ChatGPT - Step-by-step tutor
+    - prompt -> tutorial -> checklist review -> prompt -> next step
 - GitHub Copilot - Coding assistance and debugging
 
 
