@@ -1,11 +1,9 @@
 import json
-from mmap import ACCESS_COPY
 from pathlib import Path
-from token import OP
 
 from app.config import settings
 from app.llm import call_llm
-from app.models import AgentState, Assessment, Resource
+from app.models import AgentState, Assessment, AssessmentResult, Resource, RiskLevel
 
 from app.prompts import ASSESS_CASE_PROMPT, GENERATE_RESPONSE_PROMPT
 
@@ -23,6 +21,108 @@ def load_json_data(file_name: str):
     with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+def normalize_problem_tags(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+
+    normalized_tags: list[str] = []
+    seen: set[str] = set()
+
+    for item in value:
+        if not isinstance(item, str):
+            continue
+
+        tag = item.strip().lower()
+        if not tag:
+            continue
+
+        if tag in seen:
+            continue
+
+        seen.add(tag)
+        normalized_tags.append(tag)
+
+    return normalized_tags
+
+def normalize_risk_level(value: object) -> RiskLevel:
+    if not isinstance(value, str):
+        return "medium"
+
+    normalized = value.strip().lower()
+
+    if normalized == "low":
+        return "low"
+    if normalized == "medium":
+        return "medium"
+    if normalized == "high":
+        return "high"
+
+    return "medium"
+
+def normalize_needs_escalation(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+
+        if normalized in {"true", "yes", "y", "1"}:
+            return True
+
+        if normalized in {"false", "no", "n", "0"}:
+            return False
+
+    return False
+
+def normalize_search_queries(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+
+    normalized_queries: list[str] = []
+    seen: set[str] = set()
+
+    for item in value:
+        if not isinstance(item, str):
+            continue
+
+        query = item.strip()
+        if not query:
+            continue
+
+        if query in seen:
+            continue
+
+        seen.add(query)
+        normalized_queries.append(query)
+
+    return normalized_queries
+
+def parse_assessment_result(raw_output: str) -> AssessmentResult:
+    data = json.loads(raw_output)
+
+    return AssessmentResult(
+        problem_tags=normalize_problem_tags(data.get("problem_tags")),
+        risk_level=normalize_risk_level(data.get("risk_level")),
+        caregiver_emotion=data.get("caregiver_emotion", "unknown"),
+        needs_escalation=normalize_needs_escalation(data.get("needs_escalation")),
+        search_queries=normalize_search_queries(data.get("search_queries"))
+    )
+
+def build_default_assessment_result() -> AssessmentResult:
+    return AssessmentResult(
+        problem_tags=["unknown"],
+        risk_level="medium",
+        caregiver_emotion="unknown",
+        needs_escalation=False,
+        search_queries=[],
+    )
+
+def build_public_assessment(assessment_result: AssessmentResult) -> Assessment:
+    return Assessment(
+        problem_tags=assessment_result.problem_tags,
+        risk_level=assessment_result.risk_level,
+        caregiver_emotion=assessment_result.caregiver_emotion,
+    )
 
 def assess_case(state: AgentState) -> AgentState:
     prompt = ASSESS_CASE_PROMPT.format(user_input=state.user_input)
@@ -34,26 +134,15 @@ def assess_case(state: AgentState) -> AgentState:
     )
 
     try:
-        data = json.loads(raw_output)
-
-        state.assessment = Assessment(
-            problem_tags=data.get("problem_tags", []),
-            risk_level=data.get("risk_level", "medium"),
-            caregiver_emotion=data.get("caregiver_emotion", "unknown")
-        )
-
-        state.needs_escalation = data.get("needs_escalation", False)
-
+        assessment_result = parse_assessment_result(raw_output)
     except Exception as e:
         logger.error("ASSESS PARSE ERROR: %s", e)
         logger.error("RAW OUTPUT: %s", raw_output)
+        assessment_result = build_default_assessment_result()
 
-        state.assessment = Assessment(
-            problem_tags=["unknown"],
-            risk_level="medium",
-            caregiver_emotion="unknown"
-        )
-        state.needs_escalation = False
+    state.assessment_result = assessment_result
+    state.assessment = build_public_assessment(assessment_result)
+    state.needs_escalation = assessment_result.needs_escalation
 
     return state
 

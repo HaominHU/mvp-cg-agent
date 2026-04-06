@@ -1,6 +1,8 @@
 from enum import Enum
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import Optional, Literal
+
+RiskLevel = Literal["low", "medium", "high"]
 
 class LLMProvider(str, Enum):
     OPENAI = "openai"
@@ -24,6 +26,13 @@ class Assessment(BaseModel):
     risk_level: str
     caregiver_emotion: str
 
+class AssessmentResult(BaseModel):
+    problem_tags: list[str] = Field(default_factory=list)
+    risk_level: RiskLevel
+    caregiver_emotion: str
+    needs_escalation: bool = False
+    search_queries: list[str] = Field(default_factory=list)
+
 class Resource(BaseModel):
     name: str
     type: str
@@ -42,6 +51,7 @@ class AgentState(BaseModel):
 
     # step 1
     assessment: Optional[Assessment] = None
+    assessment_result: Optional[AssessmentResult] = None
 
     # step 2
     knowledge: Optional[list[str]] = None

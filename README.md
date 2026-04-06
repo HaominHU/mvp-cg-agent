@@ -37,7 +37,7 @@ POST /agent/run
 FastAPI (main.py)
 ↓
 Agent Orchestrator (agent.py)
-├── assess_case (LLM)
+├── assess_case (LLM → parse → normalize → AssessmentResult)
 ├── retrieve_knowledge (local JSON)
 ├── retrieve_resources (local JSON)
 └── generate_response (LLM)
@@ -69,6 +69,11 @@ Structured JSON Response
 ### 5. Prompt as Behavior
 - Prompts extracted into `prompts.py`
 - Treated as configurable instruction layer
+
+### 6. Structured Assessment Contract
+- `AssessmentResult` as the internal typed result for assessment
+- Parsing and normalization layer between LLM output and agent state
+- Public `Assessment` kept separate from internal assessment result
 
 ---
 
@@ -138,7 +143,7 @@ http://127.0.0.1:8000/docs
 ---
 
 ## ✅ What’s Completed
-
+### Minimal viable agent prototype with core architecture and flow implemented:
 * [x] FastAPI backend setup
 * [x] LLM integration (OpenAI)
 * [x] AgentState design
@@ -148,6 +153,10 @@ http://127.0.0.1:8000/docs
 * [x] Prompt extraction (`prompts.py`)
 * [x] Config-driven model switching (`.env` + enum)
 * [x] Basic logging system
+### Assessment parsing and normalization layer with a dedicated internal assessment result model:
+* [x] Dedicated internal assessment result model (`AssessmentResult`)
+* [x] Assessment parsing + normalization layer
+* [x] Separation between internal assessment result and public assessment response
 
 ---
 
@@ -155,8 +164,8 @@ http://127.0.0.1:8000/docs
 
 ### Agent Logic
 
-* [ ] Stronger structured output validation (assessment)
-* [ ] Retry / fallback strategies for LLM failures
+* [ ] Add retry / repair strategy for malformed LLM assessment output
+* [ ] Add unit tests for assessment parsing and normalization
 * [ ] Add `search_queries` into retrieval pipeline
 
 ### Knowledge Layer
@@ -180,12 +189,15 @@ http://127.0.0.1:8000/docs
 ---
 
 ## 🧠 Key Learnings
-
+*Minimal viable agent prototype*
 * An **agent is not a single LLM call**
 * State is essential for multi-step reasoning
 * Tools should be **small and composable**
 * Orchestrator defines intelligence, not the model alone
 * Prompt = behavior configuration, not just text
+
+*Assessment parsing and normalization layer*
+* LLM output should pass through parsing, normalization, and typed contracts before entering business logic
 
 ---
 
